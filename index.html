@@ -1,0 +1,248 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Smart Toxic Comment System</title>
+
+<style>
+body{
+background:#121212;
+color:#fff;
+font-family:Arial,sans-serif;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+margin:0;
+transition:background .6s ease
+}
+body.good-bg{
+background:linear-gradient(135deg,#0a7357,#022c22)
+}
+body.bad-bg{
+background:linear-gradient(135deg,#820909,#1f0000)
+}
+body.blocked-bg{
+background:#000
+}
+.container{
+width:500px;
+max-width:90%;
+background:#1e1e1e;
+padding:20px;
+border-radius:15px;
+box-shadow:0 5px 20px rgba(0,0,0,.5)
+}
+#warningBox{
+display:none;
+background:rgba(255,0,0,.15);
+border:1px solid red;
+padding:10px;
+border-radius:8px;
+text-align:center;
+margin-bottom:10px
+}
+#chanceBox{
+text-align:center;
+margin-bottom:10px
+}
+textarea{
+width:100%;
+height:70px;
+background:#2a2a2a;
+color:#fff;
+border:none;
+border-radius:10px;
+padding:10px;
+resize:none
+}
+button{
+width:100%;
+padding:10px;
+background:#089bf1;
+border:none;
+border-radius:10px;
+font-weight:bold;
+margin-top:10px;
+cursor:pointer
+}
+.quick-suggestions{
+display:flex;
+gap:8px;
+flex-wrap:wrap;
+margin-top:10px
+}
+.quick-suggestions span{
+background:#2a2a2a;
+padding:6px 12px;
+border-radius:20px;
+cursor:pointer;
+font-size:14px
+}
+#suggestions{
+background:#2a2a2a;
+border-radius:8px;
+margin-top:5px
+}
+.suggestion{
+padding:8px;
+display:flex;
+justify-content:space-between;
+cursor:pointer
+}
+.comments{
+margin-top:15px;
+overflow-y:auto;
+max-height:200px
+}
+.comment{
+position:relative;
+padding:12px;
+border-radius:12px;
+margin-bottom:10px;
+display:flex;
+justify-content:space-between;
+transition:transform .25s ease;
+overflow:hidden;
+background:#0f7a0f
+}
+.comment.favorite{
+background:#8a6a00
+}
+.delete-overlay,
+.favorite-overlay{
+position:absolute;
+inset:0;
+display:flex;
+align-items:center;
+font-weight:bold;
+border-radius:12px;
+opacity:0
+}
+.delete-overlay{
+background:rgb(255, 0, 0);
+justify-content:flex-end;
+padding-right:15px
+}
+.favorite-overlay{
+background:rgba(255,215,0,.8);
+justify-content:flex-start;
+padding-left:15px
+}
+.comment.swipe-left .delete-overlay{opacity:1}
+.comment.swipe-right .favorite-overlay{opacity:1}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<h2 style="text-align:center">💬 Drop a comment</h2>
+
+<div id="warningBox">⚠️ Toxic comment detected</div>
+<div id="chanceBox">Chances left: <b id="chanceCount">3</b></div>
+
+<textarea id="commentInput" placeholder="Type a comment..."></textarea>
+
+<div class="quick-suggestions">
+<span onclick="useQuick('Nice post 😊')">Nice post 😊</span>
+<span onclick="useQuick('Loved this 🔥')">Loved this 🔥</span>
+<span onclick="useQuick('remember no hate message 🤐')">remember no hate message 🤐</span>
+<span onclick="useQuick('Great work 👏')">Great work 👏</span>
+<span onclick="useQuick('Thanks 🙏')">Thanks 🙏</span>
+</div>
+
+<div id="suggestions"></div>
+
+<button onclick="submitComment()">Post</button>
+
+<div class="comments" id="commentsBox"></div>
+</div>
+
+<script>
+let chances=3
+const input=document.getElementById("commentInput")
+const commentsBox=document.getElementById("commentsBox")
+const chanceCount=document.getElementById("chanceCount")
+const warningBox=document.getElementById("warningBox")
+
+function useQuick(text){
+input.value=text
+}
+
+function isToxic(text){
+const bad=["hate","idiot","useless","trash","stupid"]
+return bad.some(w=>text.toLowerCase().includes(w))
+}
+
+function resetBg(){
+setTimeout(()=>{document.body.className=""},3000)
+}
+
+function submitComment(){
+const text=input.value.trim()
+if(!text)return
+
+if(isToxic(text)){
+chances--
+chanceCount.innerText=chances
+document.body.className="bad-bg"
+warningBox.style.display="block"
+resetBg()
+
+if(chances<=0){
+document.body.className="blocked-bg"
+warningBox.innerHTML="🚫 You are blocked"
+input.disabled=true
+}
+return
+}
+
+document.body.className="good-bg"
+warningBox.style.display="none"
+resetBg()
+
+const div=document.createElement("div")
+div.className="comment"
+div.innerHTML=`
+<span>${text}</span>
+<span>🙂</span>
+<div class="delete-overlay">DELETE</div>
+<div class="favorite-overlay">FAVORITE ⭐</div>
+`
+addSwipe(div)
+commentsBox.appendChild(div)
+input.value=""
+}
+
+function addSwipe(el){
+let startX=0,drag=false
+el.addEventListener("mousedown",e=>{
+startX=e.clientX
+drag=true
+el.style.transition="none"
+})
+document.addEventListener("mousemove",e=>{
+if(!drag)return
+const diff=e.clientX-startX
+el.style.transform=`translateX(${diff}px)`
+el.classList.toggle("swipe-left",diff<-60)
+el.classList.toggle("swipe-right",diff>60)
+})
+document.addEventListener("mouseup",()=>{
+if(!drag)return
+drag=false
+el.style.transition="transform .25s"
+if(el.classList.contains("swipe-left"))el.remove()
+else if(el.classList.contains("swipe-right")){
+el.classList.add("favorite")
+el.style.transform="translateX(0)"
+}else el.style.transform="translateX(0)"
+el.classList.remove("swipe-left","swipe-right")
+})
+}
+</script>
+
+</body>
+</html>
